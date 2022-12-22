@@ -18,7 +18,7 @@ This analysis surfaced educational trends for economically disadvantaged student
 ## Forecasting Traffic Volume 
 Several time series modeling methods were utilized to forecast the average weekly traffic volume for I-94 westbound traffic between Minneapolis and St. Paul, MN crossing MN DOT ATR station 301.
 
-[Link to the staekholder presentation](https://github.com/rebecaansar/project_portfolio/blob/main/forecasting_traffic_volume/forecasting_average_weekly_traffic_volume%20(2).pdf)
+[Link to the stakeholder presentation](https://github.com/rebecaansar/project_portfolio/blob/main/forecasting_traffic_volume/forecasting_average_weekly_traffic_volume%20(2).pdf)
 
 [Link to the project report](https://github.com/rebecaansar/project_portfolio/blob/main/forecasting_traffic_volume/rebecaansar_forecasting_traffic_volume_project_report.html)
 
@@ -26,5 +26,5 @@ Several time series modeling methods were utilized to forecast the average weekl
 )
 
 ## Certificates
-![alt text](https://github.com/rebecaansar/project_portfolio/blob/main/sql_subqueries_coursera_certificate.pdf)
+![alt text](https://github.com/rebecaansar/project_portfolio/blob/main/Copy%20of%20sql_subqueries_coursera_certificate.jpg)
 
