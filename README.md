@@ -24,3 +24,6 @@ Several time series modeling methods were utilized to forecast the average weekl
 
 [Link to the analysis in R](https://github.com/rebecaansar/project_portfolio/blob/main/forecasting_traffic_volume/forecasting_traffic_volume_code.Rmd
 )
+
+##Certificates
+Project Certification for Working with Subqueries in SQL.
