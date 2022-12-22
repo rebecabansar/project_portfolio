@@ -10,6 +10,7 @@ This analysis resulted in a regression model that predicted the list prices of h
 ## Trend Analysis of Texas Educational Data
 This analysis surfaced educational trends for economically disadvantaged students.
 
-[Link to the stakeholder presentation](https://github.com/rebecaansar/project_portfolio/tree/main/tx_educational_data_trend_analysis)
+[Link to the stakeholder presentation](https://github.com/rebecaansar/project_portfolio/blob/main/tx_educational_data_trend_analysis/stakeholder_presentation.pdf)
 
-[Link to the analysis in jupyter notebook](https://github.com/rebecaansar/project_portfolio/tree/main/tx_educational_data_trend_analysis)
+[Link to the analysis in jupyter notebook](https://github.com/rebecaansar/project_portfolio/blob/main/tx_educational_data_trend_analysis/eda_trend_analysis_of_texas_educational_data.pdf
+)
