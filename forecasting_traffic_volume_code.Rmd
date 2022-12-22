@@ -1,0 +1,484 @@
+---
+title: 'Forecasting Average Weekly Traffic Volume'
+author: "Rebeca Ansar"
+date: '2022-11-30'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(leaps)
+library(forecast)
+library(quantmod) 
+library(tseries)
+library(urca)
+library(vars)
+library(base)
+library(xts)
+```
+
+
+# Data Processing
+```{r}
+df <- read.csv(file = '~/desktop/cscie116_final_submission/Metro_Interstate_Traffic_Volume.csv')
+
+summary(df)
+```
+
+```{r}
+#find nulls in columns
+colSums(is.na(df))
+```
+
+```{r}
+unique(df$holiday)
+```
+
+```{r}
+unique(df$weather_main)
+```
+
+```{r}
+unique(df$weather_description)
+```
+
+```{r}
+#change holiday to a binary categorical variable with 1 indicating a holiday and 0 indicating a regular day
+df$holiday[df$holiday != "None"] <- 1
+df$holiday[df$holiday == "None"] <- 0
+
+unique(df$holiday)
+```
+
+
+# ______________________________________________________________________________________________________
+
+# Train/test split
+```{r}
+## use the numerical vars: temp, rain_1h, snow_1h, clouds_all
+
+#get average weekly volume as time series
+date_traffic <- xts(x=df$traffic_volume, order.by=as.Date(df$date_time))
+avg_weekly_traffic_volume <- apply.weekly(date_traffic, mean, na.rm=T)
+
+#get average weekly temperature as time series
+date_temp <- xts(x=df$temp, order.by=as.Date(df$date_time))
+avg_weekly_temp <- apply.weekly(date_temp, mean, na.rm=T)
+
+#get average weekly rain_1h as time series
+date_rain_1h <- xts(x=df$rain_1h, order.by=as.Date(df$date_time))
+avg_weekly_rain_1h <- apply.weekly(date_rain_1h, mean, na.rm=T)
+
+#get average weekly snow_1h as time series
+date_snow_1h <- xts(x=df$snow_1h, order.by=as.Date(df$date_time))
+avg_weekly_snow_1h <- apply.weekly(date_snow_1h, mean, na.rm=T)
+
+#get average weekly clouds_all as time series
+date_clouds_all <- xts(x=df$clouds_all, order.by=as.Date(df$date_time))
+avg_weekly_clouds_all <- apply.weekly(date_clouds_all, mean, na.rm=T)
+
+#combine ts weekly average data
+combined_ts_data <- cbind(avg_weekly_traffic_volume, avg_weekly_temp, avg_weekly_rain_1h,
+      avg_weekly_snow_1h, avg_weekly_clouds_all)
+
+#train/test split
+#assess cutoff point for 80% of data
+last_index <- round(nrow(combined_ts_data)*.8,0) #final row of data for training set
+
+ts_train_data <- combined_ts_data[c(1:last_index),]
+
+ts_test_data <- combined_ts_data[c((last_index + 1):nrow(combined_ts_data)),]
+
+nrow(combined_ts_data)
+nrow(ts_train_data)
+nrow(ts_test_data)
+
+#get train/test data for naive model and lag + predictors model
+all_avg_weekly_predictors_train <- data.frame(date = index(ts_train_data), coredata(ts_train_data))
+all_avg_weekly_predictors_test <- data.frame(date = index(ts_test_data), coredata(ts_test_data))
+
+#add lags separately to avoid data spillage from train to test data
+
+#add lags to train data
+all_avg_weekly_predictors_train <- cbind(all_avg_weekly_predictors_train,
+                                         Lag(all_avg_weekly_predictors_train$avg_weekly_traffic_volume, 1),
+                                         Lag(all_avg_weekly_predictors_train$avg_weekly_traffic_volume, 2),
+                                         Lag(all_avg_weekly_predictors_train$avg_weekly_traffic_volume, 3),
+                                         Lag(all_avg_weekly_predictors_train$avg_weekly_traffic_volume, 4))
+
+#add lags to test data
+all_avg_weekly_predictors_test <- cbind(all_avg_weekly_predictors_test,
+                                      Lag(all_avg_weekly_predictors_test$avg_weekly_traffic_volume, 1),
+                                      Lag(all_avg_weekly_predictors_test$avg_weekly_traffic_volume, 2),
+                                      Lag(all_avg_weekly_predictors_test$avg_weekly_traffic_volume, 3),
+                                      Lag(all_avg_weekly_predictors_test$avg_weekly_traffic_volume, 4))
+
+#get train/test data for ARIMA model
+arima_train_data <- avg_weekly_traffic_volume[c(1:last_index),]
+arima_test_data <- avg_weekly_traffic_volume[c((last_index + 1):nrow(combined_ts_data)),]
+
+
+#get train/test data for VAR level model
+var_train_data <- ts_train_data
+var_test_data <- ts_test_data
+
+
+#get train/test data for DFM + PC model
+all_dfm_train_data <- as_tibble(data.frame(date = index(ts_train_data), coredata(ts_train_data)))
+dfm_train_data <- subset(all_dfm_train_data,
+                        select= c(avg_weekly_temp,
+                                  avg_weekly_rain_1h,
+                                  avg_weekly_snow_1h,
+                                  avg_weekly_clouds_all))
+
+```
+
+
+# Evaluate each numerical variable
+```{r}
+#plot each time series variable using only train data
+plot(avg_weekly_traffic_volume[1:last_index,], main = 'Average Weekly Traffic Volume')
+plot(avg_weekly_temp[1:last_index,], main = 'Average Weekly Temperature')
+plot(avg_weekly_rain_1h[1:last_index,], main= 'Average Weekly Amount of Rain')
+plot(avg_weekly_snow_1h[1:last_index,], main = 'Average Weekly Amount of Snow')
+plot(avg_weekly_clouds_all[1:last_index,], main = 'Average Weekly Percentage Cloud Cover')
+```
+```{r}
+#test statistic is less than the critical values for tau2 at all percents, so reject the null hypothesis 
+#data is consistent with stationarity
+summary(ur.df(avg_weekly_traffic_volume[1:last_index,], selectlags = "AIC", type = "drift"))
+
+#test statistic is less than the critical values for tau2 at all percents, so reject the null hypothesis 
+#data is consistent with stationarity
+summary(ur.df(avg_weekly_temp[1:last_index,], selectlags = "AIC", type = "drift"))
+
+#test statistic is less than the critical values for tau2 at all percents, so reject the null hypothesis 
+#data is consistent with stationarity
+summary(ur.df(avg_weekly_rain_1h[1:last_index,], selectlags = "AIC", type = "drift"))
+
+#test statistic is less than the critical values for tau2 at all percents, so reject the null hypothesis 
+#data is consistent with stationarity
+summary(ur.df(avg_weekly_snow_1h[1:last_index,], selectlags = "AIC", type = "drift"))
+
+#test statistic is less than the critical values for tau2 at all percents, so reject the null hypothesis 
+#data is consistent with stationarity
+summary(ur.df(avg_weekly_clouds_all[1:last_index,], selectlags = "AIC", type = "drift"))
+
+#can exclude avg_weekly_rain_1h because it's nonstationariy and it was not an important feature in the regsubsets results when BIC was considered
+
+```
+
+# ______________________________________________________________________________________________________
+
+# Model Building
+
+
+## Benchmark: Naive time series model
+```{r}
+#The naive time series model uses the previous week's outcome value to predict the current week's value. 
+naive_lag_1_linear_model <- lm(avg_weekly_traffic_volume ~ Lag.1, data=all_avg_weekly_predictors_train)
+summary(naive_lag_1_linear_model)
+```
+
+
+## Calculate test RMSE for naive time series model
+```{r}
+#get test predictions from naive model
+naive_model_test_predictions <- predict(naive_lag_1_linear_model, newdata=all_avg_weekly_predictors_test)
+
+#calculate test rmse
+naive_model_test_rmse <- sqrt( mean(
+    (naive_model_test_predictions[-1]-all_avg_weekly_predictors_test[-1,]$avg_weekly_traffic_volume)^2 ) )
+naive_model_test_rmse
+
+```
+
+# ______________________________________________________________________________________________________
+
+
+
+# Use a combination of lags and other numerical predictors to build a model
+```{r}
+#review features in train data
+colnames(all_avg_weekly_predictors_train)
+```
+
+
+```{r}
+#variable selection
+var_selection <-regsubsets(avg_weekly_traffic_volume ~.-date,data=all_avg_weekly_predictors_train, really.big=T)
+reg.summary = summary(var_selection)
+reg.summary 
+
+names(reg.summary)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$bic)
+```
+
+
+```{r}
+#build a 5-variable model which is identified by regsubsets to have the optimal adjusted R-squared
+
+best_adjr2_5var_model <- lm(avg_weekly_traffic_volume ~ 
+                                avg_weekly_temp + avg_weekly_snow_1h + Lag.1 + Lag.2 + Lag.3,
+                                data=all_avg_weekly_predictors_train)
+summary(best_adjr2_5var_model)
+
+#get test predictions from naive model
+best_adjr2_5var_model_test_predictions <- predict(best_adjr2_5var_model, newdata=all_avg_weekly_predictors_test)
+
+#calculate test rmse
+best_adjr2_5var_model_test_rmse <- sqrt( mean(
+    (best_adjr2_5var_model_test_predictions[c(-1,-2,-3)]-all_avg_weekly_predictors_test[c(-1,-2,-3),]$avg_weekly_traffic_volume)^2 ) )
+best_adjr2_5var_model_test_rmse
+```
+
+
+```{r}
+#build a 3-variable model which is identified by regsubsets to have the lowest BIC
+
+best_bic_3var_model <- lm(avg_weekly_traffic_volume ~ 
+                                avg_weekly_temp + avg_weekly_snow_1h + Lag.3,
+                                data=all_avg_weekly_predictors_train)
+summary(best_bic_3var_model)
+
+#get test predictions from naive model
+best_bic_3var_model_test_predictions <- predict(best_bic_3var_model, newdata=all_avg_weekly_predictors_test)
+
+#calculate test rmse
+best_bic_3var_model_test_rmse <- sqrt( mean(
+    (best_bic_3var_model_test_predictions[c(-1,-2,-3)]-all_avg_weekly_predictors_test[c(-1,-2,-3),]$avg_weekly_traffic_volume)^2 ) )
+best_bic_3var_model_test_rmse
+```
+
+# ______________________________________________________________________________________________________
+
+
+## ARIMA model
+```{r}
+#build model using train data
+arima_model = auto.arima(arima_train_data)
+arima_model
+
+#forecast test predictions
+arima_full_fcast = forecast(arima_model, nrow(arima_test_data))
+arima_point_fcast = as.vector(arima_full_fcast$mean)
+
+#get ARIMA test rmse
+test_rmse_arima = sqrt(mean((arima_point_fcast-arima_test_data)^2))
+test_rmse_arima
+```
+
+
+```{r}
+#plot the ARIMA model full forecast
+plot(arima_full_fcast)
+```
+
+# ______________________________________________________________________________________________________
+
+
+
+# VAR model
+```{r}
+#function that compares adjusted R squared's for avg weekly traffic volume of VAR models with different lags
+lags = c(1:10)
+
+var_adj_r_squared_finder <- function(lags, var_train_data) {
+    
+    adjrsq_lst = c()
+    
+    for (l in lags) {
+        var_level_model = VAR(var_train_data, p=l, type="both")  
+        summary = summary(var_level_model)
+        adj_r_squared = summary$varresult$avg_weekly_traffic_volume$adj.r.squared
+        adjrsq_lst = append(adjrsq_lst, adj_r_squared)
+    }
+    
+    
+    max_index = which.max(adjrsq_lst)
+    best_lag = lags[max_index]
+    best_lag
+    
+}
+
+#find the best lag for VAR model
+var_adj_r_squared_finder(lags, var_train_data)
+```
+
+
+```{r}
+#build best VAR model
+var_level_model = VAR(var_train_data, p=8, type="both")
+summary = summary(var_level_model)
+summary$varresult$avg_weekly_traffic_volume
+
+#get adjusted R squared
+summary$varresult$avg_weekly_traffic_volume$adj.r.squared
+
+```
+
+
+```{r}
+#get test predictions
+var_fcast = predict(var_level_model, n.ahead = 54, ci=0.95)
+var_test_preds = var_fcast$fcst[[1]][,1]
+
+#plot VAR forecasts
+plot(var_fcast)
+
+#get test rmse
+test_rmse_var = sqrt(mean((var_test_preds-var_test_data$avg_weekly_traffic_volume)^2))
+test_rmse_var
+```
+
+```{r}
+#use the best var to update these plots
+
+#impulse response plots
+imp_temp_tv = irf(var_level_model, impulse="avg_weekly_temp", response="avg_weekly_traffic_volume", n.ahead=36, ortho=F, runs=1000)
+plot(imp_temp_tv)
+
+imp_snow_tv = irf(var_level_model, impulse="avg_weekly_snow_1h", response="avg_weekly_traffic_volume", n.ahead=36, ortho=F, runs=1000)
+plot(imp_snow_tv)
+
+imp_rain_tv = irf(var_level_model, impulse="avg_weekly_rain_1h", response="avg_weekly_traffic_volume", n.ahead=36, ortho=F, runs=1000)
+plot(imp_rain_tv)
+
+imp_clouds_tv = irf(var_level_model, impulse="avg_weekly_clouds_all", response="avg_weekly_traffic_volume", n.ahead=36, ortho=F, runs=1000)
+plot(imp_clouds_tv)
+```
+
+# ______________________________________________________________________________________________________
+
+
+# DFM with PC
+```{r}
+#1. get principle components from train data
+pca_avg_weekly_predictors_train = prcomp(dfm_train_data, scale=TRUE)
+
+#2. get model summary
+summary(pca_avg_weekly_predictors_train)
+
+#3. add date and outcome variable
+pc4 = pca_avg_weekly_predictors_train$x[,1:4] #get all 4 PCs
+pc4 <- data.frame(pc4)
+date_pc1 <- xts(x=pc4$PC1, order.by=as.Date(all_dfm_train_data$date))
+date_pc2 <- xts(x=pc4$PC2, order.by=as.Date(all_dfm_train_data$date))
+date_pc3 <- xts(x=pc4$PC3, order.by=as.Date(all_dfm_train_data$date))
+date_pc4 <- xts(x=pc4$PC4, order.by=as.Date(all_dfm_train_data$date))
+all_date_pc <- cbind(date_pc1, date_pc2, date_pc3, date_pc4)
+
+#contains pcs and the outcome with date in the correct format
+all_dfm_df <- data.frame(all_date_pc, all_dfm_train_data$avg_weekly_traffic_volume)
+all_dfm_df <- all_dfm_df %>% rename(
+    avg_weekly_traffic_volume = all_dfm_train_data.avg_weekly_traffic_volume
+    )
+
+#4. fit a linear model with the PCs
+dfm_lm1 = lm(avg_weekly_traffic_volume~.,all_dfm_df)
+summary(dfm_lm1)
+```
+
+```{r}
+#since pc2 and pc3 are not significant, try a model without that variable
+#does not perform better in terms of adjusted r squared
+#will use model1 for forecasting
+dfm_lm2 = lm(avg_weekly_traffic_volume~.-date_pc2 -date_pc3,all_dfm_df)
+summary(dfm_lm2)
+```
+
+
+```{r}
+#plot PC's
+ggplot(cbind(date =all_dfm_train_data$date, pc4),aes(x=date,y=PC1)) + geom_line() #PC1
+ggplot(cbind(date =all_dfm_train_data$date, pc4),aes(x=date,y=PC2)) + geom_line() #PC2
+ggplot(cbind(date =all_dfm_train_data$date, pc4),aes(x=date,y=PC3)) + geom_line() #PC3
+ggplot(cbind(date =all_dfm_train_data$date, pc4),aes(x=date,y=PC4)) + geom_line() #PC3
+```
+
+```{r}
+#use VAR to forecast the 3 PC's
+
+#find optimal lags out of lag = 1,2, and 3 
+#different lags don't produce significantly different results, so lag 1 will be used
+
+var_pcs1 <- VAR(all_date_pc, p=1, type="both")  
+summary(var_pcs1)
+print('--------')
+var_pcs2 <- VAR(all_date_pc, p=2, type="both")  
+summary(var_pcs2)
+print('--------')
+var_pcs3 <- VAR(all_date_pc, p=3, type="both")  
+summary(var_pcs3)
+```
+
+```{r}
+#forecast pc's 
+pc_fcast <- predict(var_pcs1, n.ahead=54, ci=0.95)
+
+#get table of forecasted values
+pc_fcast_tbl <- cbind(pc_fcast$fcst[[1]][,1],
+                      pc_fcast$fcst[[2]][,1],
+                      pc_fcast$fcst[[3]][,1],
+                      pc_fcast$fcst[[4]][,1])
+
+#convert table of forecasted values to data frame
+input=data.frame(pc_fcast_tbl)
+colnames(input)=c("date_pc1","date_pc2","date_pc3", "date_pc4")
+
+#get test predictions for avg weekly traffic volume
+fcst_dfm = predict(dfm_lm1, input)
+
+#get test rmse for dfm
+test_rmse_dfm = sqrt(mean( (fcst_dfm - all_avg_weekly_predictors_test$avg_weekly_traffic_volume)^2 ) )
+test_rmse_dfm
+
+```
+
+# ______________________________________________________________________________________________________
+
+# Compile Test RMSE's
+```{r, echo=FALSE}
+models <- c('naive_lag_1_linear_model',
+            'best_adjr2_5var_model',
+            'best_bic_3var_model',
+            'arima_model',
+            'var_level_model',
+            'dfm_lm1')
+
+regressors <- c('lag(avg_weekly_traffic_volume, 1)',
+                'avg_weekly_snow_1h  + avg_weekly_temp + + lag(avg_weekly_traffic_volume, 1)+ lag(avg_weekly_traffic_volume, 2) + lag(avg_weekly_traffic_volume, 3)',
+                'avg_weekly_snow_1h + avg_weekly_temp +  lag(avg_weekly_traffic_volume, 3)',
+                'auto-ARIMA with avg_weekly_traffic_volume',
+                'VAR with avg_weekly_traffic_volume, avg_weekly_temp, avg_weekly_rain_1h, avg_weekly_snow_1h, avg_weekly_clouds_all',
+                'DFM with 4 principle components')
+
+
+test_rmse <- c(round(naive_model_test_rmse,2),
+               round(best_adjr2_5var_model_test_rmse,2), 
+               round(best_bic_3var_model_test_rmse,2),
+               round(test_rmse_arima,2),
+               round(test_rmse_var,2),
+               round(test_rmse_dfm,2))
+
+results_df <- data.frame(test_rmse, models, regressors)
+
+#sorted by best to worst test rmse
+knitr::kable(results_df[order(results_df$test_rmse), ], 'simple')
+```
+
+
+
+
+
+
+
+
+
+
+
