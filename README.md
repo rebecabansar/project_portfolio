@@ -8,5 +8,8 @@ This analysis resulted in a regression model that predicted the list prices of h
 [Link to the project report](https://github.com/rebecaansar/project_portfolio/blob/main/predicting_home_list_prices/rebecaansar_round_rock_real_estate_report_and_code.pdf)
 
 ## Trend Analysis of Texas Educational Data
-An Analysis of Trends in Education for Economically Disadvantaged Students.
-[Link to Texas Educational Trend Analysis](https://github.com/rebecaansar/project_portfolio/tree/main/tx_educational_data_trend_analysis)
+This analysis surfaced educational trends for economically disadvantaged students.
+
+[Link to the stakeholder presentation](https://github.com/rebecaansar/project_portfolio/tree/main/tx_educational_data_trend_analysis)
+
+[Link to the analysis in jupyter notebook](https://github.com/rebecaansar/project_portfolio/tree/main/tx_educational_data_trend_analysis)
