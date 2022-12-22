@@ -26,5 +26,5 @@ Several time series modeling methods were utilized to forecast the average weekl
 )
 
 ## Certificates
-![alt text](https://github.com/rebecaansar/project_portfolio/blob/main/Copy%20of%20sql_subqueries_coursera_certificate.jpg)
+![alt text](https://github.com/rebecaansar/project_portfolio/blob/main/Miscellaneous/Copy%20of%20sql_subqueries_coursera_certificate.jpg)
 
