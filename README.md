@@ -28,4 +28,4 @@ Several time series modeling methods were utilized to forecast the average weekl
 ## Certificates
 Project Certification for Working with Subqueries in SQL.
 
-<img align="left" width="100" height="100" src="https://github.com/rebecaansar/project_portfolio/blob/main/sql_subqueries_coursera_certificate.pdf">
+![](https://github.com/rebecaansar/project_portfolio/blob/main/sql_subqueries_coursera_certificate.pdf)
