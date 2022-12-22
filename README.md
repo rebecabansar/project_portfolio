@@ -6,4 +6,4 @@ Predicting the listing prices of homes in Round Rock, Texas by identifying signi
 
 # Trend Analysis of Texas Educational Data
 An Analysis of Trends in Education for Economically Disadvantaged Students.
-[Link to Texas Educational Trend Analysis](..main/tx_educational_data_trend_analysis)
+[Link to Texas Educational Trend Analysis](https://github.com/rebecaansar/project_portfolio/tree/main/tx_educational_data_trend_analysis)
